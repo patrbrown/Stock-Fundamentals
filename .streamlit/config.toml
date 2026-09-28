@@ -18,6 +18,3 @@ borderColor = "#1E2733"
 
 [browser]
 gatherUsageStats = false
-
-[server]
-headless = false
