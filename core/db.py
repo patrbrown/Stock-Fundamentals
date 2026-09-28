@@ -6,6 +6,7 @@ otherwise a local SQLite file at data/app.db.
 from __future__ import annotations
 
 import os
+import re
 from datetime import datetime, timedelta, timezone
 
 import pandas as pd
@@ -72,8 +73,9 @@ _Session = None
 def database_url() -> str:
     url = os.environ.get("DATABASE_URL", "").strip()
     if url:
-        # Heroku/Neon style URLs start with postgres://; SQLAlchemy wants postgresql://
-        return url.replace("postgres://", "postgresql://", 1)
+        # Name the driver explicitly: SQLAlchemy 2.1+ defaults to "psycopg" (v3), but we install psycopg2.
+        # Also accepts Heroku-style postgres:// URLs.
+        return re.sub(r"^postgres(ql)?://", "postgresql+psycopg2://", url)
     data = APP_DIR / "data"
     data.mkdir(exist_ok=True)
     return f"sqlite:///{(data / 'app.db').as_posix()}"
