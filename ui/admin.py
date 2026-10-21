@@ -21,7 +21,27 @@ def _invite_link(code: str) -> str:
 
 def admin_page(user) -> None:
     st.title("Admin")
-    t_usage, t_users, t_inv, t_set = st.tabs(["📊 Usage", "👥 Users", "✉️ Invites", "⚙️ Settings"])
+    t_usage, t_scores, t_users, t_inv, t_set = st.tabs(
+        ["📊 Usage", "🎯 Scores", "👥 Users", "✉️ Invites", "⚙️ Settings"])
+
+    with t_scores:
+        st.caption("Every TTT score recorded when someone opened a company (one per company per day).")
+        try:
+            sf = db.score_frame(90)
+        except Exception as e:
+            sf = None
+            st.error(f"Couldn't read score history: {e}")
+        if sf is not None and sf.empty:
+            st.info("No scores recorded yet.")
+        elif sf is not None:
+            latest = sf.sort_values("date").groupby("ticker").tail(1).sort_values("score", ascending=False)
+            st.subheader("Latest score per company")
+            st.dataframe(latest, hide_index=True, use_container_width=True)
+            radar = latest[latest["score"] >= 80]
+            if not radar.empty:
+                st.caption("On the radar (80+): " + ", ".join(radar["ticker"]))
+            with st.expander("Full history (90 days)"):
+                st.dataframe(sf, hide_index=True, use_container_width=True)
 
     with t_usage:
         c = db.counts()

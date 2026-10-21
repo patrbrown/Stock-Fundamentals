@@ -213,12 +213,11 @@ def build(facts: dict, splits=None, n_quarters: int = 20) -> dict:
         tags_used[key] = used
         if key == "revenue" and unit:
             currency = unit
-    # Tax items for ROIC
-    for key, tags in {"income_tax": ["IncomeTaxExpenseBenefit"],
-                      "pretax_income": ["IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
-                                        "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments"]}.items():
+    # Extra items for ROIC, interest coverage and shareholder returns (used by the TTT score)
+    for key, tags in concepts.EXTRA_FLOW.items():
         periods, used, _ = durations(facts, tags, "money", adj)
         flow_q[key] = {e: v for e, (v, _) in quarterize(periods).items()}
+        flow_a[key] = annualize(periods)
         tags_used[key] = used
 
     inst = {}
@@ -341,7 +340,10 @@ def _derive(df: pd.DataFrame, capex_known: bool, debt_known: bool = True, annual
         df[dst] = np.where(prev > 0, cur / prev - 1, np.nan)
     if not annual:
         for col in ("revenue", "gross_profit", "operating_income", "net_income", "eps_diluted",
-                    "ebitda", "cash_from_operations", "free_cash_flow", "income_tax", "pretax_income"):
+                    "ebitda", "cash_from_operations", "free_cash_flow", "income_tax", "pretax_income",
+                    "capex", "depreciation_amortization", "interest_expense", "dividends_paid", "buybacks"):
+            if col not in df:
+                continue
             s = pd.to_numeric(df[col], errors="coerce")
             ttm = s.rolling(4, min_periods=4).sum()
             # only trust TTM when the 4 quarters are consecutive (~1 year apart)

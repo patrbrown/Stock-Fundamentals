@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
-from . import fundamentals, market, metrics, sec_client, segments, yahoo_fundamentals
+from . import fundamentals, market, metrics, score, sec_client, segments, yahoo_fundamentals
 
 
 @dataclass
@@ -33,6 +33,7 @@ class CompanyReport:
     source: str = "SEC"              # "SEC" (EDGAR filings) or "Yahoo" (TSX / IFRS companies)
     price_symbol: str | None = None  # the listing the share price comes from (e.g. ENB.TO)
     exchange: str | None = None
+    score: object = None             # core.score.ScoreResult (TTT score)
 
 
 def build_report(ticker: str, n_quarters: int = 20, refresh: bool = False, with_market: bool = True,
@@ -151,8 +152,14 @@ def _finish(*, ticker, name, cik, data, mkt, n_quarters, notes, source) -> Compa
             if snap["eps_growth_ttm"] and snap.get("pe"):
                 snap["peg"] = snap["pe"] / (snap["eps_growth_ttm"] * 100)
 
+    try:
+        sc = score.compute(q_all, data["annual"], snap, mkt, ticker, mkt.get("industry"))
+    except Exception as exc:   # scoring must never break the report
+        sc = score.ScoreResult(False, f"Couldn't compute a score ({exc}).")
+    snap["ttt_score"] = sc.total if sc.scored else None
+
     return CompanyReport(
-        ticker=ticker, name=name, cik=cik, currency=data["currency"],
+        score=sc, ticker=ticker, name=name, cik=cik, currency=data["currency"],
         quarterly=q, quarterly_all=q_all, annual=data["annual"], growth=g, snapshot=snap,
         derived_flags=data["derived_flags"], tags_used=data["tags_used"], notes=notes,
         sector=mkt.get("sector"), industry=mkt.get("industry"), industry_key=mkt.get("industry_key"),

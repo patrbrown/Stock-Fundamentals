@@ -57,4 +57,5 @@ def shares(x) -> str:
 
 def by_kind(x, kind: str, currency: str = "USD") -> str:
     return {"money": lambda v: money(v, currency), "pct": pct, "ratio": ratio,
+            "score": lambda v: "—" if _bad(v) else f"{float(v):.0f}",
             "eps": lambda v: eps(v, currency), "shares": shares}[kind](x)

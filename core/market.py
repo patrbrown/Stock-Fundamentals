@@ -15,7 +15,8 @@ def market_data(ticker: str) -> dict:
            "long_name": None, "sector": None, "industry": None, "industry_key": None,
            "target_mean": None, "analyst_count": None, "recommendation": None, "return_12m": None,
            "currency": None, "financial_currency": None, "exchange": None, "shares_outstanding": None,
-           "symbol": ticker, "info": {}}
+           "symbol": ticker, "info": {}, "forward_eps": None, "trailing_eps": None, "quote_type": None,
+           "history_listing": None}
     try:
         import yfinance as yf
     except ImportError:
@@ -55,6 +56,9 @@ def market_data(ticker: str) -> dict:
             out["shares_outstanding"] = info.get("sharesOutstanding") or info.get("impliedSharesOutstanding")
             out["long_name"] = info.get("longName") or info.get("shortName")
             out["info"] = {k: info.get(k) for k in ("longName", "shortName", "quoteType", "country")}
+            out["forward_eps"] = info.get("forwardEps")
+            out["trailing_eps"] = info.get("trailingEps")
+            out["quote_type"] = info.get("quoteType")
         except Exception:
             pass
         if not out["currency"]:
@@ -63,6 +67,7 @@ def market_data(ticker: str) -> dict:
             except Exception:
                 pass
         _fix_pence(out)
+        out["history_listing"] = out["history"]   # untouched by currency conversion (used for trend)
         h = out["history"]
         if h is not None and len(h) and out["price"]:
             year_ago = price_on(h, (h.index[-1] - pd.Timedelta(days=365)).date())
@@ -240,3 +245,31 @@ def quick_quote(symbol: str) -> str | None:
             return symbol
     except Exception:
         return None
+
+
+# ------------------------------------------------------------------ benchmark & industry momentum
+
+_bench_cache: dict = {}
+
+
+def close_history(symbol: str, period: str = "2y") -> pd.Series | None:
+    """Daily closes for any Yahoo symbol, cached for 6 hours (used for ^GSPC and industry peers)."""
+    import time
+    hit = _bench_cache.get((symbol, period))
+    if hit and time.time() - hit[0] < 6 * 3600:
+        return hit[1]
+    series = None
+    try:
+        import yfinance as yf
+        h = yf.Ticker(symbol).history(period=period, auto_adjust=True)
+        if h is not None and not h.empty:
+            series = h["Close"].copy()
+            series.index = pd.to_datetime(series.index).tz_localize(None)
+    except Exception:
+        series = None
+    _bench_cache[(symbol, period)] = (time.time(), series)
+    return series
+
+
+def industry_members(industry_key: str | None, limit: int = 10) -> list[str]:
+    return industry_leaders(industry_key, limit=limit)

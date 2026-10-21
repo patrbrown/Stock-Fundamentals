@@ -11,6 +11,7 @@ from .report import CompanyReport, build_report
 # (snapshot key, column label, kind, higher_is_better)
 COMPARE = [
     ("market_cap", "Market cap", "money", True),
+    ("ttt_score", "TTT score", "score", True),
     ("pe", "P/E (TTM)", "ratio", False),
     ("forward_pe", "Forward P/E", "ratio", False),
     ("revenue_ttm", "Revenue (TTM)", "money", True),

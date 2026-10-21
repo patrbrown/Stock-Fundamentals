@@ -12,7 +12,7 @@ from core.export import metric_table, to_excel
 from core.report import build_report
 from core.sec_client import SecError, lookup, ticker_map
 from core.settings import sec_user_agent
-from ui import charts
+from ui import charts, score_card
 from ui.breakdowns import hover_for
 
 CHARTS = [
@@ -227,6 +227,7 @@ def analyze_page(user) -> None:
     k[4].metric("Net income (TTM)", M(s["net_income_ttm"]))
     k[5].metric("EPS (TTM)", fmt.eps(s["eps_ttm"], cur))
     k[6].metric("Free cash flow (TTM)", M(s["fcf_ttm"]))
+    score_card.render(r)
     for n in r.notes:
         st.caption("ℹ️ " + n)
 
@@ -400,7 +401,7 @@ def competitor_section(user, r, n_q: int) -> None:
 
     # Headline ranks
     n_co = len(df)
-    highlights = ["P/E (TTM)", "Revenue growth YoY", "Operating margin", "Return on equity", "PEG",
+    highlights = ["TTT score", "P/E (TTM)", "Revenue growth YoY", "Operating margin", "Return on equity", "PEG",
                   "12-mo expected return (analyst target)", "Free cash flow (TTM)"]
     cols = st.columns(len(highlights))
     for c, label in zip(cols, highlights):
@@ -429,7 +430,7 @@ def competitor_section(user, r, n_q: int) -> None:
                + ("; " + "; ".join(fx_notes) + " (today's exchange rates)." if fx_notes else "."))
 
     # Side-by-side charts
-    chart_cols = ["P/E (TTM)", "Forward P/E", "Revenue (TTM)", "Revenue growth YoY", "Revenue CAGR 3y", "Free cash flow (TTM)",
+    chart_cols = ["TTT score", "P/E (TTM)", "Forward P/E", "Revenue (TTM)", "Revenue growth YoY", "Revenue CAGR 3y", "Free cash flow (TTM)",
                   "Operating margin", "Profit margin", "Return on equity", "Debt to equity", "PEG",
                   "EPS (TTM)", "12-mo return (trailing)", "12-mo expected return (analyst target)"]
     grid = st.columns(3)

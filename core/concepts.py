@@ -59,6 +59,32 @@ FLOW = {
     ],
 }
 
+# Extra flow items used by the TTT score (not charted)
+EXTRA_FLOW = {
+    "income_tax": ["IncomeTaxExpenseBenefit"],
+    "pretax_income": [
+        "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+        "IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic",
+    ],
+    "interest_expense": [
+        "InterestExpense",
+        "InterestExpenseNonoperating",
+        "InterestExpenseDebt",
+        "InterestAndDebtExpense",
+        "InterestExpenseNet",
+    ],
+    "dividends_paid": [
+        "PaymentsOfDividends",
+        "PaymentsOfDividendsCommonStock",
+        "PaymentsOfOrdinaryDividends",
+    ],
+    "buybacks": [
+        "PaymentsForRepurchaseOfCommonStock",
+        "PaymentsForRepurchaseOfEquity",
+    ],
+}
+
 # Instant items: a balance at a point in time (balance sheet, cover page)
 INSTANT = {
     "cash": [
@@ -71,6 +97,9 @@ INSTANT = {
     "debt_noncurrent": ["LongTermDebtNoncurrent", "LongTermDebtAndCapitalLeaseObligations"],
     "debt_current": ["LongTermDebtCurrent", "DebtCurrent", "LongTermDebtAndCapitalLeaseObligationsCurrent"],
     "short_term_borrowings": ["ShortTermBorrowings", "CommercialPaper"],
+    "total_assets": ["Assets"],
+    "goodwill": ["Goodwill"],
+    "intangibles": ["IntangibleAssetsNetExcludingGoodwill", "FiniteLivedIntangibleAssetsNet"],
     "equity": [
         "StockholdersEquity",
         "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",

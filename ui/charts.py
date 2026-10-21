@@ -108,6 +108,8 @@ def peer_bar(df: pd.DataFrame, column: str, kind: str, subject: str, currency: s
         xaxis = dict(tickprefix=fmt.symbol(currency), ticksuffix=suf)
     elif kind == "pct":
         x, xaxis = s, dict(tickformat=".0%")
+    elif kind == "score":
+        x, xaxis = s, dict(tickformat=",.0f", range=[0, 100])
     else:
         x, xaxis = s, dict(tickformat=",.2f")
     fig = go.Figure(go.Bar(x=x, y=list(s.index), orientation="h", marker_color=colors, text=text,

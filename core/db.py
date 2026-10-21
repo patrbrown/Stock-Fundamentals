@@ -10,8 +10,8 @@ import re
 from datetime import datetime, timedelta, timezone
 
 import pandas as pd
-from sqlalchemy import (Boolean, Column, DateTime, ForeignKey, Integer, String, create_engine, func,
-                        select, text)
+from sqlalchemy import (Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint,
+                        create_engine, func, select, text)
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from .settings import APP_DIR
@@ -64,6 +64,23 @@ class Request(Base):
     company = Column(String(255))
     kind = Column(String(16), nullable=False, default="view")   # view | peer | export
     created_at = Column(DateTime, default=utcnow, index=True)
+
+
+class ScoreRecord(Base):
+    """One TTT score per ticker per day, so the card can show the change since last week."""
+    __tablename__ = "score_history"
+    __table_args__ = (UniqueConstraint("ticker", "scored_on", name="uq_score_day"),)
+    id = Column(Integer, primary_key=True)
+    ticker = Column(String(16), nullable=False, index=True)
+    scored_on = Column(Date, nullable=False, index=True)
+    total = Column(Integer, nullable=False)
+    value = Column(Float)
+    growth = Column(Float)
+    quality = Column(Float)
+    health = Column(Float)
+    scorecard = Column(String(16))
+    flags = Column(Integer, default=0)
+    trend = Column(String(16))
 
 
 _engine = None
@@ -139,3 +156,56 @@ def ping() -> bool:
     with engine().connect() as c:
         c.execute(text("select 1"))
     return True
+
+
+# ------------------------------------------------------------------ TTT score history
+
+def record_score(ticker: str, sc) -> None:
+    """Store today's score (one row per ticker per day; later views the same day overwrite it)."""
+    if sc is None or not getattr(sc, "scored", False):
+        return
+    try:
+        today = utcnow().date()
+        p = sc.pillars
+        vals = dict(total=int(sc.total), value=p.get("value", {}).get("earned"), growth=p.get("growth", {}).get("earned"),
+                    quality=p.get("quality", {}).get("earned"), health=p.get("health", {}).get("earned"),
+                    scorecard=sc.scorecard, flags=len(sc.red_flags), trend=(sc.trend or {}).get("state"))
+        with session() as s:
+            row = s.scalar(select(ScoreRecord).where(ScoreRecord.ticker == ticker.upper(),
+                                                     ScoreRecord.scored_on == today))
+            if row is None:
+                s.add(ScoreRecord(ticker=ticker.upper(), scored_on=today, **vals))
+            else:
+                for k, v in vals.items():
+                    setattr(row, k, v)
+            s.commit()
+    except Exception:
+        pass  # history must never break the app
+
+
+def score_last_week(ticker: str) -> dict | None:
+    """The most recent stored score that is 5–14 days old (i.e. "last week"), if any."""
+    try:
+        today = utcnow().date()
+        with session() as s:
+            row = s.scalar(select(ScoreRecord)
+                           .where(ScoreRecord.ticker == ticker.upper(),
+                                  ScoreRecord.scored_on <= today - timedelta(days=5),
+                                  ScoreRecord.scored_on >= today - timedelta(days=14))
+                           .order_by(ScoreRecord.scored_on.desc()))
+            if row is None:
+                return None
+            return {"total": row.total, "scored_on": row.scored_on, "value": row.value, "growth": row.growth,
+                    "quality": row.quality, "health": row.health}
+    except Exception:
+        return None
+
+
+def score_frame(days: int = 90) -> pd.DataFrame:
+    q = (select(ScoreRecord.scored_on, ScoreRecord.ticker, ScoreRecord.total, ScoreRecord.scorecard,
+                ScoreRecord.flags, ScoreRecord.trend)
+         .where(ScoreRecord.scored_on >= utcnow().date() - timedelta(days=days))
+         .order_by(ScoreRecord.scored_on.desc(), ScoreRecord.total.desc()))
+    with engine().connect() as c:
+        rows = c.execute(q).fetchall()
+    return pd.DataFrame(rows, columns=["date", "ticker", "score", "scorecard", "red_flags", "trend"])
